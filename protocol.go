@@ -64,6 +64,13 @@ func (m *Metrics) processPacket(packet []byte) error {
 }
 
 func (m *Metrics) process(name, value, stype []byte) error {
+	if len(name) == 0 {
+		return fmt.Errorf("missimg name")
+	}
+	if len(value) == 0 {
+		return fmt.Errorf("missimg value")
+	}
+
 	switch string(stype) {
 	case "c":
 		return m.processCounter(name, value)
@@ -72,7 +79,7 @@ func (m *Metrics) process(name, value, stype []byte) error {
 	case "ms":
 		return m.processTimer(name, value)
 	default:
-		return fmt.Errorf("Unknown metric type: %v", string(stype))
+		return fmt.Errorf("unknown metric type: %v", string(stype))
 	}
 }
 func packetTokenizer(packet []byte, end byte) ([]byte, []byte, error) {
