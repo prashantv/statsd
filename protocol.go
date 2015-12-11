@@ -42,17 +42,17 @@ func (m *Metrics) handleConn(conn *net.UDPConn) {
 func (m *Metrics) processPacket(packet []byte) error {
 	for len(packet) > 0 {
 		var key, value, statType []byte
-		var err error
+		var ok bool
 
-		if packet, key, err = packetTokenizer(packet, ':'); err != nil {
-			return err
+		if packet, key, ok = packetTokenizer(packet, ':'); !ok {
+			return fmt.Errorf("could not find ':' in packet: %v", packet)
 		}
-		if packet, value, err = packetTokenizer(packet, '|'); err != nil {
-			return err
+		if packet, value, ok = packetTokenizer(packet, '|'); !ok {
+			return fmt.Errorf("could not find '|' in packet: %v", packet)
 		}
 
 		// The new line at the end is not always present, so we can ignore errors.
-		packet, statType, err = packetTokenizer(packet, '\n')
+		packet, statType, _ = packetTokenizer(packet, '\n')
 
 		if err := m.process(key, value, statType); err != nil {
 			return err
@@ -81,12 +81,12 @@ func (m *Metrics) process(name, value, stype []byte) error {
 		return fmt.Errorf("unknown metric type: %v", string(stype))
 	}
 }
-func packetTokenizer(packet []byte, end byte) ([]byte, []byte, error) {
+func packetTokenizer(packet []byte, end byte) ([]byte, []byte, bool) {
 	endIndex := bytes.IndexByte(packet, end)
 	if endIndex < 0 {
-		return nil, packet, fmt.Errorf("cannot find '%c' in packet: %s", end, packet)
+		return nil, packet, false
 	}
-	return packet[endIndex+1:], packet[:endIndex], nil
+	return packet[endIndex+1:], packet[:endIndex], true
 }
 
 // func dumpPacket(packet []byte) {
