@@ -2,28 +2,26 @@ package statsd
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
-	"os"
 )
 
 // Start starts a statsd server on the given hostPort.
-func Start(hostPort string) (*Metrics, error) {
+func Start(hostPort string) (*Metrics, *net.UDPAddr, error) {
 	addr, err := net.ResolveUDPAddr("udp", hostPort)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	udpConn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	m := newMetrics()
 	go m.handleConn(udpConn)
-	return m, nil
+	return m, udpConn.LocalAddr().(*net.UDPAddr), nil
 }
 
 func (m *Metrics) handleConn(conn *net.UDPConn) {
@@ -37,6 +35,7 @@ func (m *Metrics) handleConn(conn *net.UDPConn) {
 		if err := m.processPacket(buf[:n]); err != nil {
 			log.Printf("Failed to process packet %s: %v", string(buf[:n]), err)
 		}
+		m.callOnUpdate()
 	}
 }
 
@@ -90,9 +89,9 @@ func packetTokenizer(packet []byte, end byte) ([]byte, []byte, error) {
 	return packet[endIndex+1:], packet[:endIndex], nil
 }
 
-func dumpPacket(packet []byte) {
-	fmt.Printf("Packet (length: %v)\n", len(packet))
-	dumper := hex.Dumper(os.Stdout)
-	dumper.Write(packet)
-	dumper.Close()
-}
+// func dumpPacket(packet []byte) {
+// 	fmt.Printf("Packet (length: %v)\n", len(packet))
+// 	dumper := hex.Dumper(os.Stdout)
+// 	dumper.Write(packet)
+// 	dumper.Close()
+// }

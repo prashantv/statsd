@@ -16,6 +16,8 @@ type Metrics struct {
 	counters map[string]int64
 	gauges   map[string]int64
 	timers   map[string][]time.Duration
+
+	onUpdate []func()
 }
 
 func newMetrics() *Metrics {
@@ -68,6 +70,23 @@ func (m *Metrics) FlushAndSnapshot() *Snapshot {
 	}
 	m.initMaps()
 	return ss
+}
+
+// AddOnUpdate adds an event handler that is called on updates.
+// It is called after processing a packet.
+func (m *Metrics) AddOnUpdate(f func()) {
+	m.Lock()
+	m.onUpdate = append(m.onUpdate, f)
+	m.Unlock()
+}
+
+func (m *Metrics) callOnUpdate() {
+	m.RLock()
+	updates := m.onUpdate
+	m.RUnlock()
+	for _, f := range updates {
+		f()
+	}
 }
 
 func (m *Metrics) processCounter(name, value []byte) error {

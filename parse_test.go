@@ -1,11 +1,60 @@
 package statsd
 
 import (
+	"net"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestProtocolUDP(t *testing.T) {
+	localAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	require.NoError(t, err, "ResolveUDPAddr failed")
+
+	metrics, udpAddr, err := Start("127.0.0.1:0")
+	require.NoError(t, err, "Failed to start statsd server")
+
+	conn, err := net.DialUDP("udp", localAddr, udpAddr)
+	require.NoError(t, err, "Failed to connect to statsd server")
+
+	packets := []string{
+		"c1:1|c",
+		"c1:2|c\nt1:5.2|ms\ng1:3|g\ng2:4|g",
+		"g1:5|g",
+		"t1:4.8|ms\nc1:1|c",
+	}
+	expected := &Snapshot{
+		Counters: map[string]int64{
+			"c1": 4,
+		},
+		Gauges: map[string]int64{
+			"g1": 5,
+			"g2": 4,
+		},
+		Timers: map[string][]time.Duration{
+			"t1": []time.Duration{5200 * time.Microsecond, 4800 * time.Microsecond},
+		},
+	}
+
+	var wg sync.WaitGroup
+	metrics.AddOnUpdate(func() {
+		wg.Done()
+	})
+	wg.Add(len(packets))
+	for _, packet := range packets {
+		_, err := conn.Write([]byte(packet))
+		require.NoError(t, err, "Failed to write packet to UDP connection")
+	}
+
+	// Wait till all the metrics are processed
+	wg.Wait()
+
+	got := metrics.FlushAndSnapshot()
+	assert.Equal(t, expected, got, "Snapshot mismatch")
+}
 
 func TestProcessCounter(t *testing.T) {
 	tests := []struct {
