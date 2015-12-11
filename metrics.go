@@ -72,6 +72,18 @@ func (m *Metrics) FlushAndSnapshot() *Snapshot {
 	return ss
 }
 
+// Snapshot returns a snapshot of all metrics without flushing them.
+func (m *Metrics) Snapshot() *Snapshot {
+	m.RLock()
+	defer m.RUnlock()
+
+	return &Snapshot{
+		Counters: copyMapInt64(m.counters),
+		Gauges:   copyMapInt64(m.gauges),
+		Timers:   copyMapDuration(m.timers),
+	}
+}
+
 // AddOnUpdate adds an event handler that is called on updates.
 // It is called after processing a packet.
 func (m *Metrics) AddOnUpdate(f func()) {

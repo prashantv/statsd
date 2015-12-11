@@ -181,3 +181,29 @@ func TestProcessTimer(t *testing.T) {
 		assert.Equal(t, tt.expected, got, "Timer values mismatch")
 	}
 }
+
+func TestSnapshots(t *testing.T) {
+	m := newMetrics()
+	require.NoError(t, m.processCounter([]byte("c1"), []byte("1")), "processCounter failed")
+	require.NoError(t, m.processGauge([]byte("g1"), []byte("3")), "processGauge failed")
+	require.NoError(t, m.processTimer([]byte("t1"), []byte("1.3")), "processTimer failed")
+
+	empty := newMetrics().Snapshot()
+	expected := &Snapshot{
+		Counters: map[string]int64{
+			"c1": 1,
+		},
+		Gauges: map[string]int64{
+			"g1": 3,
+		},
+		Timers: map[string][]time.Duration{
+			"t1": {1300 * time.Microsecond},
+		},
+	}
+
+	assert.Equal(t, expected, m.Snapshot(), "Snapshot mismatch")
+	assert.Equal(t, expected, m.Snapshot(), "Second snapshot mismatch")
+	assert.Equal(t, expected, m.FlushAndSnapshot(), "Snapshot mismatch")
+	assert.Equal(t, empty, m.Snapshot(), "Snapshot should be empty after Flush")
+	assert.Equal(t, empty, m.FlushAndSnapshot(), "Snapshot should be empty after Flush")
+}
