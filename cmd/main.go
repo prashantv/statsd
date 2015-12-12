@@ -21,11 +21,11 @@ func main() {
 	flag.Parse()
 	hostPort := fmt.Sprintf("%s:%v", *host, *port)
 
-	m, err := statsd.Start(hostPort)
+	m, addr, err := statsd.Start(hostPort)
 	if err != nil {
 		log.Fatalf("Failed to start statsd server: %v", err)
 	}
-	fmt.Println("Started statsd server on", hostPort)
+	fmt.Println("Started statsd server on", addr.String())
 
 	for {
 		time.Sleep(*flushDuration)
