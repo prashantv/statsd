@@ -101,10 +101,25 @@ func (m *Metrics) callOnUpdate() {
 	}
 }
 
-func (m *Metrics) processCounter(name, value []byte) error {
-	valueInt, err := strconv.ParseInt(string(value), 10, 64)
+// parseInt will try to parse the given value as an integer.
+// The value may be a float, in which case we'll convert it to an integer after parsing.
+func parseInt(value []byte) (int64, error) {
+	if valueInt, err := strconv.ParseInt(string(value), 10, 64); err == nil {
+		return valueInt, nil
+	}
+
+	valueFloat, err := strconv.ParseFloat(string(value), 64)
 	if err != nil {
-		return fmt.Errorf("invalid counter value %s: %v", value, err)
+		return 0, fmt.Errorf("failed to process %q as int or float: %v", value, err)
+	}
+
+	return int64(valueFloat), nil
+}
+
+func (m *Metrics) processCounter(name, value []byte) error {
+	valueInt, err := parseInt(value)
+	if err != nil {
+		return fmt.Errorf("failed to process counter: %v", err)
 	}
 
 	m.Lock()
@@ -114,9 +129,9 @@ func (m *Metrics) processCounter(name, value []byte) error {
 }
 
 func (m *Metrics) processGauge(name, value []byte) error {
-	valueInt, err := strconv.ParseInt(string(value), 10, 64)
+	valueInt, err := parseInt(value)
 	if err != nil {
-		return fmt.Errorf("invalid counter value %s: %v", value, err)
+		return fmt.Errorf("failed to process gauge: %v", err)
 	}
 
 	m.Lock()

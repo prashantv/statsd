@@ -71,8 +71,8 @@ func TestProcessCounter(t *testing.T) {
 			expected: 6,
 		},
 		{
-			values:  []string{"1.0"},
-			wantErr: true,
+			values:   []string{"1.45"},
+			expected: 1,
 		},
 		{
 			values:  []string{"abc"},
@@ -113,8 +113,8 @@ func TestProcessGauge(t *testing.T) {
 			expected: 3,
 		},
 		{
-			values:  []string{"1.0"},
-			wantErr: true,
+			values:   []string{"1.45"},
+			expected: 1,
 		},
 		{
 			values:  []string{"abc"},
