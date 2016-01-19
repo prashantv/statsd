@@ -13,6 +13,7 @@ var (
 	host          = flag.String("host", "127.0.0.1", "Host to listen on")
 	port          = flag.Int("port", 8125, "Port to listen on")
 	flushDuration = flag.Duration("flushDuration", 10*time.Second, "Duration to flush stats")
+	suppressEmpty = flag.Bool("suppressEmpty", true, "Suppress printing empty metrics")
 )
 
 const maxPacketSize = 65536
@@ -36,6 +37,10 @@ func main() {
 func printMetrics(m *statsd.Metrics) {
 	ss := m.FlushAndSnapshot()
 
+	if skipEmpty(ss) {
+		return
+	}
+
 	fmt.Println("Metrics:")
 	fmt.Printf("  Counters (%v)\n", len(ss.Counters))
 	for k, v := range ss.Counters {
@@ -50,4 +55,34 @@ func printMetrics(m *statsd.Metrics) {
 	for k, v := range ss.Timers {
 		fmt.Printf("    %15v: %v\n", k, v)
 	}
+	fmt.Println()
+}
+
+type emptyState int
+
+const (
+	nothingPrinted emptyState = iota
+	emptyPrinted
+	statsPrinted
+)
+
+var state emptyState
+
+func skipEmpty(ss *statsd.Snapshot) bool {
+	if len(ss.Counters)+len(ss.Gauges)+len(ss.Timers) == 0 {
+		if state != emptyPrinted {
+			fmt.Printf("Metrics: no new metrics.")
+		} else {
+			fmt.Printf(".")
+		}
+		state = emptyPrinted
+		return true
+	}
+
+	if state == emptyPrinted {
+		fmt.Println()
+		fmt.Println()
+	}
+	state = statsPrinted
+	return false
 }
